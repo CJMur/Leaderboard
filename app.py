@@ -37,11 +37,13 @@ try:
             for team in top_teams:
                 team_badges[team] += f"{emoji}"
                 
-    # Find the lowest NBA scorer (The Milk)
-    min_nba = df['NBA'].min()
-    lowest_nba_teams = df[df['NBA'] == min_nba]['Team'].tolist()
-    for team in lowest_nba_teams:
-        team_badges[team] += "🥛"
+    # Find the lowest NBA scorer (excluding Alf and Jack)
+    eligible_for_milk = df[~df['Team'].isin(['Alf', 'Jack'])]
+    if not eligible_for_milk.empty:
+        min_nba = eligible_for_milk['NBA'].min()
+        lowest_nba_teams = eligible_for_milk[eligible_for_milk['NBA'] == min_nba]['Team'].tolist()
+        for team in lowest_nba_teams:
+            team_badges[team] += "🥛"
                 
     # Apply badges
     df['Team_Display'] = df['Team'].apply(lambda x: f"{x} {team_badges.get(x, '')}")
@@ -49,18 +51,26 @@ try:
     # 3. Overall Standings Ladder
     st.header("Overall Standings")
     
-    # Sort by total points
-    overall_cols = ['Team_Display', 'Points', 'AFL', 'NBA', 'NFL', 'MLB', 'WORLD CUP']
-    overall_df = df[overall_cols].sort_values(by='Points', ascending=False).reset_index(drop=True)
+    # Sort by total points FIRST, then NBA score SECOND for the tiebreaker
+    overall_cols = ['Team', 'Team_Display', 'Points', 'AFL', 'NBA', 'NFL', 'MLB', 'WORLD CUP']
+    overall_df = df[overall_cols].sort_values(by=['Points', 'NBA'], ascending=[False, False]).reset_index(drop=True)
     
     # Add podium medals to the top 3
     medals = ['🥇', '🥈', '🥉']
     for i in range(min(3, len(overall_df))):
-        # Insert the medal at the front of the name
         overall_df.at[i, 'Team_Display'] = f"{medals[i]} {overall_df.at[i, 'Team_Display']}"
+        
+    # Add Green/Red dots for first and last place
+    overall_df['Points_Display'] = overall_df['Points'].astype(str)
+    if not overall_df.empty:
+        overall_df.at[0, 'Points_Display'] = f"🟢 {overall_df.at[0, 'Points']}"
+        overall_df.at[len(overall_df)-1, 'Points_Display'] = f"🔴 {overall_df.at[len(overall_df)-1, 'Points']}"
     
     overall_df.index = overall_df.index + 1 # Start rank at 1
-    overall_df = overall_df.rename(columns={'Team_Display': 'Team'})
+    
+    # Clean up the dataframe for display
+    display_df = overall_df[['Team_Display', 'Points', 'Points_Display', 'AFL', 'NBA', 'NFL', 'MLB', 'WORLD CUP']].copy()
+    display_df = display_df.rename(columns={'Team_Display': 'Team', 'Points_Display': 'Status'})
     
     # Spotlight the current leader
     if not overall_df.empty:
@@ -68,14 +78,14 @@ try:
         leader_points = overall_df.iloc[0]['Points']
         st.success(f"**Current Leader:** {leader_name} with {leader_points} points! 👑")
 
-    # Display the dataframe with a visual Progress Bar for the Points
-    max_total_points = float(overall_df['Points'].max())
+    # Display the dataframe with the progress bar
+    max_total_points = float(display_df['Points'].max())
     st.dataframe(
-        overall_df, 
+        display_df, 
         use_container_width=True,
         column_config={
             "Points": st.column_config.ProgressColumn(
-                "Total Points",
+                "Total Points Bar",
                 help="Visual gap to first place",
                 format="%d",
                 min_value=0,
