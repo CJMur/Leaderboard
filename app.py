@@ -15,6 +15,9 @@ def load_data():
 try:
     df = load_data()
     
+    # Strip any hidden whitespace from team names so filters work properly
+    df['Team'] = df['Team'].astype(str).str.strip()
+    
     sports_emojis = {
         'AFL': '🏉',
         'NBA': '🏀',
@@ -37,7 +40,7 @@ try:
             for team in top_teams:
                 team_badges[team] += f"{emoji}"
                 
-    # Find the lowest NBA scorer (excluding Alf and Jack)
+    # Find the lowest NBA scorer (strictly excluding Alf and Jack)
     eligible_for_milk = df[~df['Team'].isin(['Alf', 'Jack'])]
     if not eligible_for_milk.empty:
         min_nba = eligible_for_milk['NBA'].min()
@@ -59,18 +62,12 @@ try:
     medals = ['🥇', '🥈', '🥉']
     for i in range(min(3, len(overall_df))):
         overall_df.at[i, 'Team_Display'] = f"{medals[i]} {overall_df.at[i, 'Team_Display']}"
-        
-    # Add Green/Red dots for first and last place
-    overall_df['Points_Display'] = overall_df['Points'].astype(str)
-    if not overall_df.empty:
-        overall_df.at[0, 'Points_Display'] = f"🟢 {overall_df.at[0, 'Points']}"
-        overall_df.at[len(overall_df)-1, 'Points_Display'] = f"🔴 {overall_df.at[len(overall_df)-1, 'Points']}"
     
     overall_df.index = overall_df.index + 1 # Start rank at 1
     
     # Clean up the dataframe for display
-    display_df = overall_df[['Team_Display', 'Points', 'Points_Display', 'AFL', 'NBA', 'NFL', 'MLB', 'WORLD CUP']].copy()
-    display_df = display_df.rename(columns={'Team_Display': 'Team', 'Points_Display': 'Status'})
+    display_df = overall_df[['Team_Display', 'Points', 'AFL', 'NBA', 'NFL', 'MLB', 'WORLD CUP']].copy()
+    display_df = display_df.rename(columns={'Team_Display': 'Team'})
     
     # Spotlight the current leader
     if not overall_df.empty:
@@ -78,14 +75,14 @@ try:
         leader_points = overall_df.iloc[0]['Points']
         st.success(f"**Current Leader:** {leader_name} with {leader_points} points! 👑")
 
-    # Display the dataframe with the progress bar
+    # Display the dataframe with the standard progress bar
     max_total_points = float(display_df['Points'].max())
     st.dataframe(
         display_df, 
         use_container_width=True,
         column_config={
             "Points": st.column_config.ProgressColumn(
-                "Total Points Bar",
+                "Total Points",
                 help="Visual gap to first place",
                 format="%d",
                 min_value=0,
