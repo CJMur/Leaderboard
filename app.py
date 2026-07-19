@@ -120,10 +120,14 @@ try:
                 "Points": st.column_config.ProgressColumn(
                     "Total Points",
                     help="Visual gap to first place",
-                    format="%d",
+                    format="%.1f",  # <-- CHANGED: allows 1 decimal place instead of %d
                     min_value=0,
                     max_value=max_total_points,
                 ),
+                "WORLD CUP": st.column_config.NumberColumn(
+                    "WORLD CUP",
+                    format="%.1f"  # <-- ADDED: Cleans up the 6 trailing zeros shown in your screenshot
+                )
             }
         )
 
